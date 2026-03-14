@@ -1,20 +1,69 @@
 # Sector Model Accuracy Assessor
 
-Web app to evaluate regression model performance for a sector dataset.
+This is a browser-based regression analytics tool for assessing model fit on a single uploaded sector dataset.
 
-Metrics calculated:
-- RSS
-- TSS
-- R²
-- RSE
-- RMSE
+## Features
 
-Includes:
-- CSV upload
-- feature selection
-- regression fitting
-- multidimensional 3D visualization of model accuracy
+- Upload CSV
+- Choose target variable
+- Choose predictor variables
+- Run OLS regression
+- Compute:
+  - RSS
+  - TSS
+  - R²
+  - Adjusted R²
+  - RSE
+  - RMSE
+- Show visual analytics:
+  - Actual vs Predicted
+  - Residuals vs Predicted
+  - Residual Histogram
+  - Feature Magnitude View
+  - 3D Multidimensional Plot
+- Simulate cross-sector transfer accuracy under:
+  - feature mean shift
+  - feature scale shift
+  - noise inflation
 
-Deployment:
+## Interpretation
 
-Upload `index.html` to a GitHub repository and enable GitHub Pages from the main branch.
+- Smaller is better:
+  - RSS
+  - RSE
+  - RMSE
+
+- Larger is better:
+  - R²
+  - Adjusted R²
+
+- TSS is contextual only.
+  It is not a model-quality metric by itself.
+
+## Files
+
+- `index.html`
+- `README.md`
+
+## Run locally
+
+Open `index.html` in your browser.
+
+## Deploy on GitHub Pages
+
+1. Create a GitHub repository
+2. Upload `index.html` and `README.md`
+3. Commit to `main`
+4. Go to:
+   - Settings
+   - Pages
+5. Select:
+   - Source = Deploy from a branch
+   - Branch = main
+   - Folder = / (root)
+6. Save
+
+## Important Note
+
+The cross-sector section is a simulation-based estimate.
+It is not real measured accuracy unless you use actual data from another sector.
