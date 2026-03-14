@@ -1,220 +1,922 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Sector Model Accuracy Assessor</title>
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
-<style>
-body{font-family:Arial;background:#0f172a;color:white;margin:40px}
-.card{background:#1e293b;padding:20px;border-radius:12px;margin-bottom:20px}
-button{padding:10px 16px;border-radius:8px;border:none;background:#3b82f6;color:white;font-weight:bold}
-input,select{padding:8px;border-radius:6px;margin:6px}
-table{border-collapse:collapse;width:100%;margin-top:10px}
-td,th{border:1px solid #334155;padding:8px;text-align:left}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sector Model Accuracy Assessor</title>
+
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0f172a;
+      --panel:#1e293b;
+      --panel2:#111827;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --accent:#3b82f6;
+      --good:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --border:#334155;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial, Helvetica, sans-serif;
+      background:linear-gradient(180deg,var(--bg),#020617);
+      color:var(--text);
+    }
+
+    .container{
+      max-width:1400px;
+      margin:0 auto;
+      padding:24px;
+    }
+
+    .title{
+      font-size:34px;
+      font-weight:800;
+      margin-bottom:8px;
+    }
+
+    .subtitle{
+      color:var(--muted);
+      margin-bottom:24px;
+    }
+
+    .card{
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:20px;
+      margin-bottom:20px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(12, 1fr);
+      gap:14px;
+    }
+
+    .col-12{grid-column:span 12}
+    .col-6{grid-column:span 6}
+    .col-4{grid-column:span 4}
+    .col-3{grid-column:span 3}
+
+    @media(max-width:1000px){
+      .col-6,.col-4,.col-3{grid-column:span 12}
+    }
+
+    label{
+      display:block;
+      margin-bottom:8px;
+      font-weight:700;
+    }
+
+    input, select, button{
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#0b1220;
+      color:var(--text);
+    }
+
+    select[multiple]{
+      min-height:180px;
+    }
+
+    button{
+      background:var(--accent);
+      border:none;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    button:hover{
+      opacity:0.92;
+    }
+
+    .status{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#0b1220;
+      color:var(--muted);
+    }
+
+    .kpis{
+      display:grid;
+      grid-template-columns:repeat(6,1fr);
+      gap:12px;
+      margin-top:15px;
+    }
+
+    @media(max-width:1000px){
+      .kpis{grid-template-columns:repeat(2,1fr)}
+    }
+
+    .kpi{
+      background:#0b1220;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:14px;
+    }
+
+    .kpi-label{
+      color:var(--muted);
+      font-size:13px;
+      margin-bottom:8px;
+    }
+
+    .kpi-value{
+      font-size:24px;
+      font-weight:800;
+    }
+
+    .table-wrap{
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:12px;
+      margin-top:12px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:900px;
+    }
+
+    th, td{
+      border-bottom:1px solid var(--border);
+      padding:12px;
+      text-align:left;
+    }
+
+    th{
+      background:#172033;
+      position:sticky;
+      top:0;
+    }
+
+    .plot{
+      width:100%;
+      min-height:460px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#0b1220;
+    }
+
+    .good{color:var(--good);font-weight:700}
+    .warn{color:var(--warn);font-weight:700}
+    .bad{color:var(--bad);font-weight:700}
+
+    .note{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+    }
+
+    .section-title{
+      font-size:22px;
+      font-weight:800;
+      margin-bottom:10px;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <div class="title">Sector Model Accuracy Assessor</div>
+    <div class="subtitle">
+      Upload a CSV for one specific sector, choose the target and predictors, then assess model performance using RSS, TSS, R², Adjusted R², RSE, and RMSE. Includes a multidimensional transfer simulation for another sector.
+    </div>
 
-<h1>Sector Model Accuracy Assessor</h1>
+    <div class="card">
+      <div class="section-title">1) Upload data and choose setup</div>
+      <div class="grid">
+        <div class="col-4">
+          <label>Sector Name</label>
+          <input id="sectorName" type="text" placeholder="Example: Automotive" />
+        </div>
 
-<div class="card">
-Sector Name:
-<input id="sectorName" placeholder="Example: Automotive">
+        <div class="col-4">
+          <label>CSV File</label>
+          <input id="csvFile" type="file" accept=".csv" />
+        </div>
 
-CSV File:
-<input type="file" id="csvFile">
+        <div class="col-4">
+          <label>Missing Value Handling</label>
+          <select id="missingStrategy">
+            <option value="drop">Drop rows with missing values</option>
+            <option value="mean">Mean imputation</option>
+          </select>
+        </div>
 
-<button onclick="loadCSV()">Load Data</button>
-</div>
+        <div class="col-12">
+          <button id="loadBtn" type="button">Load CSV</button>
+        </div>
+      </div>
 
-<div class="card">
-Target Variable:
-<select id="target"></select>
+      <div id="loadStatus" class="status">Waiting for CSV upload.</div>
+    </div>
 
-Predictor Variables:
-<select id="features" multiple></select>
+    <div class="card">
+      <div class="section-title">2) Choose variables</div>
+      <div class="grid">
+        <div class="col-4">
+          <label>Target Variable</label>
+          <select id="targetSelect"></select>
+        </div>
 
-<button onclick="runModel()">Run Model</button>
-</div>
+        <div class="col-4">
+          <label>Predictor Variables (Ctrl/Cmd + click)</label>
+          <select id="featureSelect" multiple></select>
+        </div>
 
-<div class="card">
-<h3>Model Metrics</h3>
-<table id="metricsTable"></table>
-</div>
+        <div class="col-4">
+          <label>Include Intercept</label>
+          <select id="interceptSelect">
+            <option value="yes" selected>Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
 
-<div class="card">
-<h3>3D Multidimensional Transfer Simulation</h3>
-<div id="plot3d" style="height:500px"></div>
-</div>
+        <div class="col-12">
+          <button id="runBtn" type="button">Run Model Assessment</button>
+        </div>
+      </div>
 
-<script>
+      <div class="note" style="margin-top:12px;">
+        Interpretation direction:
+        <br>• Smaller is better: RSE, RMSE, RSS
+        <br>• Larger is better: R², Adjusted R²
+        <br>• TSS is contextual only. It is not “better” when larger.
+      </div>
+    </div>
 
-let data=[]
-let numeric=[]
+    <div class="card" id="summarySection" style="display:none;">
+      <div class="section-title">3) Model Summary</div>
 
-function loadCSV(){
-const file=document.getElementById("csvFile").files[0]
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-label">Rows Used</div>
+          <div class="kpi-value" id="kpiN">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Predictors</div>
+          <div class="kpi-value" id="kpiP">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">RSS</div>
+          <div class="kpi-value" id="kpiRSS">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">TSS</div>
+          <div class="kpi-value" id="kpiTSS">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">R²</div>
+          <div class="kpi-value" id="kpiR2">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Adj. R²</div>
+          <div class="kpi-value" id="kpiAdjR2">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">RSE</div>
+          <div class="kpi-value" id="kpiRSE">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">RMSE</div>
+          <div class="kpi-value" id="kpiRMSE">-</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Assessment</div>
+          <div class="kpi-value" id="kpiAssessment">-</div>
+        </div>
+      </div>
 
-Papa.parse(file,{
-header:true,
-complete:function(res){
-data=res.data
+      <div id="assessmentText" class="status" style="margin-top:16px;"></div>
+    </div>
 
-let cols=Object.keys(data[0])
+    <div class="card" id="coefSection" style="display:none;">
+      <div class="section-title">4) Coefficient Table</div>
+      <div class="table-wrap">
+        <table id="coefTable">
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Coefficient</th>
+              <th>Interpretation</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
 
-numeric=cols.filter(c=>{
-return data.every(r=>!isNaN(parseFloat(r[c])))
-})
+    <div class="card" id="plotsSection" style="display:none;">
+      <div class="section-title">5) Visual Analytics</div>
 
-let t=document.getElementById("target")
-let f=document.getElementById("features")
+      <div class="grid">
+        <div class="col-6">
+          <div id="actualPredPlot" class="plot"></div>
+        </div>
+        <div class="col-6">
+          <div id="residualPlot" class="plot"></div>
+        </div>
+        <div class="col-6">
+          <div id="residualHistPlot" class="plot"></div>
+        </div>
+        <div class="col-6">
+          <div id="featureImportancePlot" class="plot"></div>
+        </div>
+        <div class="col-12">
+          <div id="transfer3DPlot" class="plot"></div>
+        </div>
+      </div>
+    </div>
 
-t.innerHTML=""
-f.innerHTML=""
+    <div class="card" id="transferSection" style="display:none;">
+      <div class="section-title">6) Cross-Sector Transfer Simulation</div>
 
-numeric.forEach(c=>{
-let o=document.createElement("option")
-o.text=c
-t.add(o)
+      <div class="grid">
+        <div class="col-3">
+          <label>Other Sector Name</label>
+          <input id="otherSectorName" type="text" placeholder="Example: Energy" />
+        </div>
 
-let o2=document.createElement("option")
-o2.text=c
-f.add(o2)
-})
-}
-})
-}
+        <div class="col-3">
+          <label>Feature Mean Shift</label>
+          <input id="meanShift" type="number" step="0.01" value="0.15" />
+        </div>
 
-function mean(a){return a.reduce((s,v)=>s+v,0)/a.length}
+        <div class="col-3">
+          <label>Feature Scale Shift</label>
+          <input id="scaleShift" type="number" step="0.01" value="1.20" />
+        </div>
 
-function runModel(){
+        <div class="col-3">
+          <label>Noise Inflation</label>
+          <input id="noiseInflation" type="number" step="0.01" value="1.30" />
+        </div>
 
-let target=document.getElementById("target").value
-let features=[...document.getElementById("features").selectedOptions].map(o=>o.value)
+        <div class="col-12">
+          <button id="simulateBtn" type="button">Simulate Other-Sector Accuracy</button>
+        </div>
+      </div>
 
-let y=data.map(r=>+r[target])
+      <div id="transferSummary" class="status" style="margin-top:14px;">
+        No transfer simulation has been run yet.
+      </div>
 
-let X=data.map(r=>{
-let row=[1]
-features.forEach(f=>row.push(+r[f]))
-return row
-})
+      <div class="note" style="margin-top:12px;">
+        This is a simulation-based estimate, not real accuracy from actual other-sector data.
+        It estimates how accuracy may change if feature distribution and noise differ in another sector.
+      </div>
+    </div>
+  </div>
 
-let Xt=transpose(X)
-let XtX=mult(Xt,X)
-let invXtX=inverse(XtX)
-let XtY=mult(Xt,y.map(v=>[v]))
-let beta=mult(invXtX,XtY).map(r=>r[0])
+  <script>
+    let rawData = [];
+    let cleanedData = [];
+    let numericColumns = [];
+    let latestModel = null;
 
-let yhat=X.map(r=>dot(r,beta))
-let resid=y.map((v,i)=>v-yhat[i])
+    const plotConfig = {
+      responsive: true,
+      displaylogo: false
+    };
 
-let RSS=resid.reduce((s,v)=>s+v*v,0)
-let TSS=y.reduce((s,v)=>s+(v-mean(y))**2,0)
+    function el(id) {
+      return document.getElementById(id);
+    }
 
-let R2=1-RSS/TSS
+    function formatNum(x, d = 4) {
+      if (x === null || x === undefined || Number.isNaN(x)) return "NA";
+      if (!Number.isFinite(x)) return "NA";
+      return Number(x).toLocaleString(undefined, { maximumFractionDigits: d });
+    }
 
-let n=y.length
-let p=beta.length
+    function mean(arr) {
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
 
-let RSE=Math.sqrt(RSS/(n-p))
-let RMSE=Math.sqrt(RSS/n)
+    function variance(arr, sample = true) {
+      const m = mean(arr);
+      const ss = arr.reduce((s, x) => s + (x - m) ** 2, 0);
+      return ss / (arr.length - (sample ? 1 : 0));
+    }
 
-let table=document.getElementById("metricsTable")
+    function transpose(A) {
+      return A[0].map((_, j) => A.map(row => row[j]));
+    }
 
-table.innerHTML=`
-<tr><th>RSS</th><th>TSS</th><th>R²</th><th>RSE</th><th>RMSE</th></tr>
-<tr>
-<td>${RSS.toFixed(4)}</td>
-<td>${TSS.toFixed(4)}</td>
-<td>${R2.toFixed(4)}</td>
-<td>${RSE.toFixed(4)}</td>
-<td>${RMSE.toFixed(4)}</td>
-</tr>
-`
+    function matMul(A, B) {
+      const rowsA = A.length;
+      const colsA = A[0].length;
+      const rowsB = B.length;
+      const colsB = B[0].length;
+      if (colsA !== rowsB) {
+        throw new Error("Matrix dimensions do not align.");
+      }
+      const out = Array.from({ length: rowsA }, () => Array(colsB).fill(0));
+      for (let i = 0; i < rowsA; i++) {
+        for (let k = 0; k < colsA; k++) {
+          for (let j = 0; j < colsB; j++) {
+            out[i][j] += A[i][k] * B[k][j];
+          }
+        }
+      }
+      return out;
+    }
 
-plot3D(yhat,resid)
+    function matVecMul(A, v) {
+      return A.map(row => row.reduce((sum, val, j) => sum + val * v[j], 0));
+    }
 
-}
+    function identity(n) {
+      return Array.from({ length: n }, (_, i) =>
+        Array.from({ length: n }, (_, j) => i === j ? 1 : 0)
+      );
+    }
 
-function plot3D(pred,res){
+    function inverse(matrix) {
+      const n = matrix.length;
+      const A = matrix.map(row => row.slice());
+      const I = identity(n);
 
-let x=pred
-let y=res
-let z=pred.map((v,i)=>v+y[i])
+      for (let i = 0; i < n; i++) {
+        let pivot = A[i][i];
+        let pivotRow = i;
 
-Plotly.newPlot("plot3d",[{
-x:x,
-y:y,
-z:z,
-mode:"markers",
-type:"scatter3d",
-marker:{size:4}
-}],{
-title:"Multidimensional Model Accuracy Visualization"
-})
-}
+        for (let r = i + 1; r < n; r++) {
+          if (Math.abs(A[r][i]) > Math.abs(pivot)) {
+            pivot = A[r][i];
+            pivotRow = r;
+          }
+        }
 
-function dot(a,b){
-let s=0
-for(let i=0;i<a.length;i++)s+=a[i]*b[i]
-return s
-}
+        if (Math.abs(pivot) < 1e-12) {
+          throw new Error("Matrix is singular or nearly singular. Remove highly collinear predictors.");
+        }
 
-function transpose(A){
-return A[0].map((_,i)=>A.map(r=>r[i]))
-}
+        if (pivotRow !== i) {
+          [A[i], A[pivotRow]] = [A[pivotRow], A[i]];
+          [I[i], I[pivotRow]] = [I[pivotRow], I[i]];
+        }
 
-function mult(A,B){
-let rows=A.length
-let cols=B[0].length
-let out=Array.from({length:rows},()=>Array(cols).fill(0))
-for(let i=0;i<rows;i++)
-for(let j=0;j<cols;j++)
-for(let k=0;k<B.length;k++)
-out[i][j]+=A[i][k]*B[k][j]
-return out
-}
+        const div = A[i][i];
+        for (let j = 0; j < n; j++) {
+          A[i][j] /= div;
+          I[i][j] /= div;
+        }
 
-function inverse(m){
-let n=m.length
-let I=[]
-let C=[]
-for(let i=0;i<n;i++){
-I[i]=[]
-C[i]=[]
-for(let j=0;j<n;j++){
-if(i==j)I[i][j]=1
-else I[i][j]=0
-C[i][j]=m[i][j]
-}
-}
+        for (let r = 0; r < n; r++) {
+          if (r !== i) {
+            const factor = A[r][i];
+            for (let j = 0; j < n; j++) {
+              A[r][j] -= factor * A[i][j];
+              I[r][j] -= factor * I[i][j];
+            }
+          }
+        }
+      }
 
-for(let i=0;i<n;i++){
-let e=C[i][i]
+      return I;
+    }
 
-for(let j=0;j<n;j++){
-C[i][j]/=e
-I[i][j]/=e
-}
+    function detectNumericColumns(data) {
+      const cols = Object.keys(data[0] || {});
+      return cols.filter(col => {
+        let nonEmpty = 0;
+        let numeric = 0;
+        for (const row of data) {
+          const v = row[col];
+          if (v === null || v === undefined || String(v).trim() === "") continue;
+          nonEmpty++;
+          if (!Number.isNaN(Number(v))) numeric++;
+        }
+        return nonEmpty > 0 && nonEmpty === numeric;
+      });
+    }
 
-for(let ii=0;ii<n;ii++){
-if(ii==i)continue
-let f=C[ii][i]
-for(let j=0;j<n;j++){
-C[ii][j]-=f*C[i][j]
-I[ii][j]-=f*I[i][j]
-}
-}
-}
+    function populateSelectors() {
+      const targetSelect = el("targetSelect");
+      const featureSelect = el("featureSelect");
 
-return I
-}
+      targetSelect.innerHTML = "";
+      featureSelect.innerHTML = "";
 
-</script>
+      numericColumns.forEach((col, idx) => {
+        const opt1 = document.createElement("option");
+        opt1.value = col;
+        opt1.textContent = col;
+        if (idx === 0) opt1.selected = true;
+        targetSelect.appendChild(opt1);
 
+        const opt2 = document.createElement("option");
+        opt2.value = col;
+        opt2.textContent = col;
+        if (idx > 0 && idx < 4) opt2.selected = true;
+        featureSelect.appendChild(opt2);
+      });
+    }
+
+    function cleanData(data, target, features, strategy) {
+      const cols = [target, ...features];
+
+      if (strategy === "drop") {
+        return data
+          .filter(row => cols.every(c => {
+            const v = row[c];
+            return v !== null && v !== undefined && String(v).trim() !== "" && !Number.isNaN(Number(v));
+          }))
+          .map(row => {
+            const out = { ...row };
+            cols.forEach(c => out[c] = Number(out[c]));
+            return out;
+          });
+      }
+
+      const means = {};
+      cols.forEach(c => {
+        const vals = data
+          .map(r => r[c])
+          .filter(v => v !== null && v !== undefined && String(v).trim() !== "" && !Number.isNaN(Number(v)))
+          .map(Number);
+        means[c] = mean(vals);
+      });
+
+      return data.map(row => {
+        const out = { ...row };
+        cols.forEach(c => {
+          const v = row[c];
+          out[c] = (v === null || v === undefined || String(v).trim() === "" || Number.isNaN(Number(v)))
+            ? means[c]
+            : Number(v);
+        });
+        return out;
+      });
+    }
+
+    function computeOLS(data, target, features, includeIntercept = true) {
+      const n = data.length;
+      const X = data.map(row => {
+        const vals = features.map(f => Number(row[f]));
+        return includeIntercept ? [1, ...vals] : vals;
+      });
+      const y = data.map(row => Number(row[target]));
+
+      const p = X[0].length;
+      if (n <= p) {
+        throw new Error("Not enough rows. Number of rows must be greater than number of parameters.");
+      }
+
+      const Xt = transpose(X);
+      const XtX = matMul(Xt, X);
+      const XtXInv = inverse(XtX);
+      const XtY = matMul(Xt, y.map(v => [v]));
+      const beta = matMul(XtXInv, XtY).map(r => r[0]);
+
+      const yHat = matVecMul(X, beta);
+      const residuals = y.map((v, i) => v - yHat[i]);
+
+      const RSS = residuals.reduce((s, e) => s + e * e, 0);
+      const yBar = mean(y);
+      const TSS = y.reduce((s, v) => s + (v - yBar) ** 2, 0);
+
+      const R2 = TSS === 0 ? 1 : 1 - RSS / TSS;
+      const adjR2 = 1 - ((1 - R2) * (n - 1)) / (n - p);
+      const RSE = Math.sqrt(RSS / (n - p));
+      const RMSE = Math.sqrt(RSS / n);
+
+      const terms = includeIntercept ? ["Intercept", ...features] : [...features];
+
+      return {
+        n,
+        p,
+        target,
+        features,
+        beta,
+        y,
+        yHat,
+        residuals,
+        RSS,
+        TSS,
+        R2,
+        adjR2,
+        RSE,
+        RMSE,
+        terms,
+        includeIntercept
+      };
+    }
+
+    function assessModel(r2, rse, rmse) {
+      if (r2 >= 0.75 && rse < rmse * 1.15) return "Strong";
+      if (r2 >= 0.45) return "Moderate";
+      return "Weak";
+    }
+
+    function renderSummary(model) {
+      el("summarySection").style.display = "block";
+      el("kpiN").textContent = formatNum(model.n, 0);
+      el("kpiP").textContent = formatNum(model.features.length, 0);
+      el("kpiRSS").textContent = formatNum(model.RSS, 4);
+      el("kpiTSS").textContent = formatNum(model.TSS, 4);
+      el("kpiR2").textContent = formatNum(model.R2, 4);
+      el("kpiAdjR2").textContent = formatNum(model.adjR2, 4);
+      el("kpiRSE").textContent = formatNum(model.RSE, 4);
+      el("kpiRMSE").textContent = formatNum(model.RMSE, 4);
+
+      const assessment = assessModel(model.R2, model.RSE, model.RMSE);
+      el("kpiAssessment").textContent = assessment;
+
+      const sector = el("sectorName").value || "Selected Sector";
+      let text = `${sector}: `;
+      if (assessment === "Strong") {
+        text += `The model fits this sector well. R² is high, and error metrics are relatively low, indicating strong explanatory performance.`;
+      } else if (assessment === "Moderate") {
+        text += `The model shows moderate fit. It explains a meaningful portion of variation, but there is still noticeable unexplained error.`;
+      } else {
+        text += `The model is weak for this sector. R² is low and/or error is relatively high, suggesting the selected predictors do not explain the target well.`;
+      }
+      text += ` RSS should be as small as possible. TSS is not a quality score by itself; it only reflects total variation in the target.`;
+
+      el("assessmentText").textContent = text;
+    }
+
+    function renderCoefficientTable(model) {
+      el("coefSection").style.display = "block";
+      const tbody = el("coefTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      model.terms.forEach((term, i) => {
+        const tr = document.createElement("tr");
+
+        let interp = "";
+        if (term === "Intercept") {
+          interp = "Baseline target value when all predictors are zero.";
+        } else {
+          const sign = model.beta[i] >= 0 ? "positive" : "negative";
+          interp = `${term} has a ${sign} estimated effect on the target in this sector model.`;
+        }
+
+        tr.innerHTML = `
+          <td>${term}</td>
+          <td>${formatNum(model.beta[i], 6)}</td>
+          <td>${interp}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderPlots(model) {
+      el("plotsSection").style.display = "block";
+
+      Plotly.newPlot("actualPredPlot", [
+        {
+          x: model.yHat,
+          y: model.y,
+          mode: "markers",
+          type: "scatter",
+          name: "Observations"
+        },
+        {
+          x: [Math.min(...model.yHat, ...model.y), Math.max(...model.yHat, ...model.y)],
+          y: [Math.min(...model.yHat, ...model.y), Math.max(...model.yHat, ...model.y)],
+          mode: "lines",
+          type: "scatter",
+          name: "Perfect Fit"
+        }
+      ], {
+        title: "Actual vs Predicted",
+        paper_bgcolor: "#0b1220",
+        plot_bgcolor: "#0b1220",
+        font: { color: "#e5e7eb" },
+        xaxis: { title: "Predicted" },
+        yaxis: { title: "Actual" }
+      }, plotConfig);
+
+      Plotly.newPlot("residualPlot", [
+        {
+          x: model.yHat,
+          y: model.residuals,
+          mode: "markers",
+          type: "scatter",
+          name: "Residuals"
+        }
+      ], {
+        title: "Residuals vs Predicted",
+        paper_bgcolor: "#0b1220",
+        plot_bgcolor: "#0b1220",
+        font: { color: "#e5e7eb" },
+        xaxis: { title: "Predicted" },
+        yaxis: { title: "Residuals", zeroline: true }
+      }, plotConfig);
+
+      Plotly.newPlot("residualHistPlot", [
+        {
+          x: model.residuals,
+          type: "histogram",
+          nbinsx: 30,
+          name: "Residual Histogram"
+        }
+      ], {
+        title: "Residual Distribution",
+        paper_bgcolor: "#0b1220",
+        plot_bgcolor: "#0b1220",
+        font: { color: "#e5e7eb" },
+        xaxis: { title: "Residual" },
+        yaxis: { title: "Count" }
+      }, plotConfig);
+
+      const slopeStart = model.includeIntercept ? 1 : 0;
+      const slopeTerms = model.terms.slice(slopeStart);
+      const slopeBetas = model.beta.slice(slopeStart).map(v => Math.abs(v));
+
+      Plotly.newPlot("featureImportancePlot", [
+        {
+          x: slopeTerms,
+          y: slopeBetas,
+          type: "bar",
+          name: "Absolute Coefficient"
+        }
+      ], {
+        title: "Feature Magnitude View",
+        paper_bgcolor: "#0b1220",
+        plot_bgcolor: "#0b1220",
+        font: { color: "#e5e7eb" },
+        xaxis: { title: "Feature" },
+        yaxis: { title: "|Coefficient|" }
+      }, plotConfig);
+
+      renderDefault3D(model);
+    }
+
+    function renderDefault3D(model) {
+      const z = model.y.map((v, i) => v - model.residuals[i]);
+
+      Plotly.newPlot("transfer3DPlot", [
+        {
+          x: model.yHat,
+          y: model.residuals,
+          z: z,
+          mode: "markers",
+          type: "scatter3d",
+          marker: { size: 4 },
+          name: "Sector Data"
+        }
+      ], {
+        title: "3D Model Geometry: Predicted vs Residual vs Reconstructed Actual",
+        paper_bgcolor: "#0b1220",
+        plot_bgcolor: "#0b1220",
+        font: { color: "#e5e7eb" },
+        scene: {
+          xaxis: { title: "Predicted" },
+          yaxis: { title: "Residual" },
+          zaxis: { title: "Actual" },
+          bgcolor: "#0b1220"
+        }
+      }, plotConfig);
+    }
+
+    function simulateTransfer(model) {
+      const otherSector = el("otherSectorName").value || "Other Sector";
+      const meanShift = Number(el("meanShift").value);
+      const scaleShift = Number(el("scaleShift").value);
+      const noiseInflation = Number(el("noiseInflation").value);
+
+      const simulatedPred = model.yHat.map(v => v * scaleShift + meanShift * mean(model.yHat));
+      const simulatedResiduals = model.residuals.map(r => r * noiseInflation);
+      const simulatedActual = simulatedPred.map((p, i) => p + simulatedResiduals[i]);
+
+      const RSS2 = simulatedResiduals.reduce((s, e) => s + e * e, 0);
+      const yBar2 = mean(simulatedActual);
+      const TSS2 = simulatedActual.reduce((s, v) => s + (v - yBar2) ** 2, 0);
+      const R22 = TSS2 === 0 ? 1 : 1 - RSS2 / TSS2;
+      const RMSE2 = Math.sqrt(RSS2 / simulatedActual.length);
+      const RSE2 = Math.sqrt(RSS2 / (simulatedActual.length - model.p));
+
+      let summary = `${otherSector} transfer simulation: estimated R² = ${formatNum(R22, 4)}, RSE = ${formatNum(RSE2, 4)}, RMSE = ${formatNum(RMSE2, 4)}. `;
+      if (R22 >= 0.75) {
+        summary += `The model appears likely to transfer well under the selected shift assumptions.`;
+      } else if (R22 >= 0.45) {
+        summary += `The model may transfer moderately, but some degradation is expected.`;
+      } else {
+        summary += `The model is likely to degrade significantly in the other sector under these assumptions.`;
+      }
+      summary += ` This is a simulated estimate, not real measured cross-sector accuracy.`;
+
+      el("transferSummary").textContent = summary;
+
+      Plotly.newPlot("transfer3DPlot", [
+        {
+          x: model.yHat,
+          y: model.residuals,
+          z: model.y,
+          mode: "markers",
+          type: "scatter3d",
+          marker: { size: 4 },
+          name: "Original Sector"
+        },
+        {
+          x: simulatedPred,
+          y: simulatedResiduals,
+          z: simulatedActual,
+          mode: "markers",
+          type: "scatter3d",
+          marker: { size: 4 },
+          name: otherSector
+        }
+      ], {
+        title: "3D Transfer Simulation: Original Sector vs Simulated Other Sector",
+        paper_bgcolor: "#0b1220",
+        plot_bgcolor: "#0b1220",
+        font: { color: "#e5e7eb" },
+        scene: {
+          xaxis: { title: "Predicted" },
+          yaxis: { title: "Residual" },
+          zaxis: { title: "Actual" },
+          bgcolor: "#0b1220"
+        }
+      }, plotConfig);
+    }
+
+    function loadCSV() {
+      const file = el("csvFile").files[0];
+      if (!file) {
+        el("loadStatus").textContent = "Please choose a CSV file first.";
+        return;
+      }
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          rawData = results.data || [];
+          if (!rawData.length) {
+            el("loadStatus").textContent = "CSV appears empty.";
+            return;
+          }
+
+          numericColumns = detectNumericColumns(rawData);
+          if (numericColumns.length < 2) {
+            el("loadStatus").textContent = "Need at least 2 numeric columns.";
+            return;
+          }
+
+          populateSelectors();
+          el("loadStatus").textContent = `CSV loaded successfully. Rows: ${rawData.length}. Numeric columns detected: ${numericColumns.length}.`;
+        },
+        error: function(err) {
+          el("loadStatus").textContent = `CSV parse error: ${err.message}`;
+        }
+      });
+    }
+
+    function runModel() {
+      try {
+        if (!rawData.length) throw new Error("Load a CSV first.");
+
+        const target = el("targetSelect").value;
+        const features = Array.from(el("featureSelect").selectedOptions).map(o => o.value);
+        const includeIntercept = el("interceptSelect").value === "yes";
+        const strategy = el("missingStrategy").value;
+
+        if (!target) throw new Error("Choose a target variable.");
+        if (!features.length) throw new Error("Choose at least one predictor.");
+        if (features.includes(target)) throw new Error("Target cannot also be a predictor.");
+
+        cleanedData = cleanData(rawData, target, features, strategy);
+        latestModel = computeOLS(cleanedData, target, features, includeIntercept);
+
+        renderSummary(latestModel);
+        renderCoefficientTable(latestModel);
+        renderPlots(latestModel);
+
+        el("transferSection").style.display = "block";
+        el("loadStatus").textContent = "Model assessment completed.";
+      } catch (err) {
+        el("loadStatus").textContent = err.message;
+      }
+    }
+
+    el("loadBtn").addEventListener("click", loadCSV);
+    el("runBtn").addEventListener("click", runModel);
+    el("simulateBtn").addEventListener("click", function() {
+      if (!latestModel) {
+        el("transferSummary").textContent = "Run the original model first.";
+        return;
+      }
+      simulateTransfer(latestModel);
+    });
+  </script>
 </body>
 </html>
