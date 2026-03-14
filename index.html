@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sector Model Accuracy Assessor</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+<style>
+body{font-family:Arial;background:#0f172a;color:white;margin:40px}
+.card{background:#1e293b;padding:20px;border-radius:12px;margin-bottom:20px}
+button{padding:10px 16px;border-radius:8px;border:none;background:#3b82f6;color:white;font-weight:bold}
+input,select{padding:8px;border-radius:6px;margin:6px}
+table{border-collapse:collapse;width:100%;margin-top:10px}
+td,th{border:1px solid #334155;padding:8px;text-align:left}
+</style>
+</head>
+
+<body>
+
+<h1>Sector Model Accuracy Assessor</h1>
+
+<div class="card">
+Sector Name:
+<input id="sectorName" placeholder="Example: Automotive">
+
+CSV File:
+<input type="file" id="csvFile">
+
+<button onclick="loadCSV()">Load Data</button>
+</div>
+
+<div class="card">
+Target Variable:
+<select id="target"></select>
+
+Predictor Variables:
+<select id="features" multiple></select>
+
+<button onclick="runModel()">Run Model</button>
+</div>
+
+<div class="card">
+<h3>Model Metrics</h3>
+<table id="metricsTable"></table>
+</div>
+
+<div class="card">
+<h3>3D Multidimensional Transfer Simulation</h3>
+<div id="plot3d" style="height:500px"></div>
+</div>
+
+<script>
+
+let data=[]
+let numeric=[]
+
+function loadCSV(){
+const file=document.getElementById("csvFile").files[0]
+
+Papa.parse(file,{
+header:true,
+complete:function(res){
+data=res.data
+
+let cols=Object.keys(data[0])
+
+numeric=cols.filter(c=>{
+return data.every(r=>!isNaN(parseFloat(r[c])))
+})
+
+let t=document.getElementById("target")
+let f=document.getElementById("features")
+
+t.innerHTML=""
+f.innerHTML=""
+
+numeric.forEach(c=>{
+let o=document.createElement("option")
+o.text=c
+t.add(o)
+
+let o2=document.createElement("option")
+o2.text=c
+f.add(o2)
+})
+}
+})
+}
+
+function mean(a){return a.reduce((s,v)=>s+v,0)/a.length}
+
+function runModel(){
+
+let target=document.getElementById("target").value
+let features=[...document.getElementById("features").selectedOptions].map(o=>o.value)
+
+let y=data.map(r=>+r[target])
+
+let X=data.map(r=>{
+let row=[1]
+features.forEach(f=>row.push(+r[f]))
+return row
+})
+
+let Xt=transpose(X)
+let XtX=mult(Xt,X)
+let invXtX=inverse(XtX)
+let XtY=mult(Xt,y.map(v=>[v]))
+let beta=mult(invXtX,XtY).map(r=>r[0])
+
+let yhat=X.map(r=>dot(r,beta))
+let resid=y.map((v,i)=>v-yhat[i])
+
+let RSS=resid.reduce((s,v)=>s+v*v,0)
+let TSS=y.reduce((s,v)=>s+(v-mean(y))**2,0)
+
+let R2=1-RSS/TSS
+
+let n=y.length
+let p=beta.length
+
+let RSE=Math.sqrt(RSS/(n-p))
+let RMSE=Math.sqrt(RSS/n)
+
+let table=document.getElementById("metricsTable")
+
+table.innerHTML=`
+<tr><th>RSS</th><th>TSS</th><th>R²</th><th>RSE</th><th>RMSE</th></tr>
+<tr>
+<td>${RSS.toFixed(4)}</td>
+<td>${TSS.toFixed(4)}</td>
+<td>${R2.toFixed(4)}</td>
+<td>${RSE.toFixed(4)}</td>
+<td>${RMSE.toFixed(4)}</td>
+</tr>
+`
+
+plot3D(yhat,resid)
+
+}
+
+function plot3D(pred,res){
+
+let x=pred
+let y=res
+let z=pred.map((v,i)=>v+y[i])
+
+Plotly.newPlot("plot3d",[{
+x:x,
+y:y,
+z:z,
+mode:"markers",
+type:"scatter3d",
+marker:{size:4}
+}],{
+title:"Multidimensional Model Accuracy Visualization"
+})
+}
+
+function dot(a,b){
+let s=0
+for(let i=0;i<a.length;i++)s+=a[i]*b[i]
+return s
+}
+
+function transpose(A){
+return A[0].map((_,i)=>A.map(r=>r[i]))
+}
+
+function mult(A,B){
+let rows=A.length
+let cols=B[0].length
+let out=Array.from({length:rows},()=>Array(cols).fill(0))
+for(let i=0;i<rows;i++)
+for(let j=0;j<cols;j++)
+for(let k=0;k<B.length;k++)
+out[i][j]+=A[i][k]*B[k][j]
+return out
+}
+
+function inverse(m){
+let n=m.length
+let I=[]
+let C=[]
+for(let i=0;i<n;i++){
+I[i]=[]
+C[i]=[]
+for(let j=0;j<n;j++){
+if(i==j)I[i][j]=1
+else I[i][j]=0
+C[i][j]=m[i][j]
+}
+}
+
+for(let i=0;i<n;i++){
+let e=C[i][i]
+
+for(let j=0;j<n;j++){
+C[i][j]/=e
+I[i][j]/=e
+}
+
+for(let ii=0;ii<n;ii++){
+if(ii==i)continue
+let f=C[ii][i]
+for(let j=0;j<n;j++){
+C[ii][j]-=f*C[i][j]
+I[ii][j]-=f*I[i][j]
+}
+}
+}
+
+return I
+}
+
+</script>
+
+</body>
+</html>
